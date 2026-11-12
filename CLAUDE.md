@@ -28,7 +28,7 @@ Maven wrapper; no linter configured.
 - Single test class: `./mvnw test -Dtest=BookStoreApplicationTests`
 - Single method: `./mvnw test -Dtest=BookStoreApplicationTests#contextLoads`
 
-**Tests are `@SpringBootTest` against the real containers**, so `docker compose up -d` must be running first or the context fails to start.
+**Tests are `@SpringBootTest` against the real containers**, so `docker compose up -d` must be running first and `.env` must define `JWT_SECRET` or the context fails to start.
 
 ## Infrastructure (docker-compose.yml)
 
