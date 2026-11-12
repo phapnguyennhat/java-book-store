@@ -10,7 +10,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.ProblemDetail;
+import org.springframework.web.ErrorResponseException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -119,11 +120,16 @@ class AuthService {
         }
     }
 
-    private static ResponseStatusException unauthorized() {
-        return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+    private static ErrorResponseException unauthorized() {
+        return error(HttpStatus.UNAUTHORIZED, "auth.invalid-credentials", "Invalid credentials");
     }
 
-    private static ResponseStatusException conflict() {
-        return new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
+    private static ErrorResponseException conflict() {
+        return error(HttpStatus.CONFLICT, "auth.email-taken", "Email already registered");
+    }
+
+    /** detail is translated from {@code code} in messages*.properties; {@code fallback} is used if the key is missing. */
+    private static ErrorResponseException error(HttpStatus status, String code, String fallback) {
+        return new ErrorResponseException(status, ProblemDetail.forStatusAndDetail(status, fallback), null, code, null);
     }
 }
