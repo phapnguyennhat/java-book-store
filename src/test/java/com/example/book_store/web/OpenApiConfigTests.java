@@ -22,6 +22,9 @@ class OpenApiConfigTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/api/auth/login'].post.parameters[?(@.name=='Accept-Language')].in").value("header"))
                 .andExpect(jsonPath("$.paths['/api/auth/me'].get.parameters[?(@.name=='Accept-Language')].schema.enum[*]")
-                        .value(hasItems("en", "vi")));
+                        .value(hasItems("en", "vi")))
+                // cookies are sent by the browser, not typed in: no cookie inputs in the docs
+                .andExpect(jsonPath("$.paths['/api/auth/refresh'].post.parameters[?(@.in=='cookie')]").isEmpty())
+                .andExpect(jsonPath("$.paths['/api/auth/logout'].post.parameters[?(@.in=='cookie')]").isEmpty());
     }
 }

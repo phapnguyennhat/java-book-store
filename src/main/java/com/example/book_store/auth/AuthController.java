@@ -1,9 +1,9 @@
 package com.example.book_store.auth;
 
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -21,9 +21,7 @@ class AuthController {
     private static final String REFRESH_PATH = "/api/auth"; // refresh token is only ever sent to auth endpoints
 
     private final AuthService auth;
-
-    @Value("${app.auth.cookie-secure:true}")
-    boolean cookieSecure;
+    private final AuthProperties props;
 
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
@@ -37,14 +35,17 @@ class AuthController {
     }
 
     @PostMapping("/refresh")
-    UserResponse refresh(@CookieValue(REFRESH_COOKIE) String token, HttpServletResponse res) {
+    // cookies are hidden from the API docs: browsers send them automatically and scripts (Swagger UI) cannot set them
+    UserResponse refresh(@Parameter(hidden = true) @CookieValue(name = REFRESH_COOKIE, required = false) String token,
+                         HttpServletResponse res) {
         return setCookies(res, auth.refresh(token));
     }
 
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void logout(@CookieValue(name = SecurityConfig.ACCESS_COOKIE, required = false) String access,
-                @CookieValue(name = REFRESH_COOKIE, required = false) String refresh, HttpServletResponse res) {
+    void logout(@Parameter(hidden = true) @CookieValue(name = SecurityConfig.ACCESS_COOKIE, required = false) String access,
+                @Parameter(hidden = true) @CookieValue(name = REFRESH_COOKIE, required = false) String refresh,
+                HttpServletResponse res) {
         auth.logout(access, refresh);
         clearCookies(res);
     }
@@ -63,8 +64,8 @@ class AuthController {
     }
 
     private UserResponse setCookies(HttpServletResponse res, AuthService.Session s) {
-        add(res, SecurityConfig.ACCESS_COOKIE, s.accessToken(), "/", auth.getAccessTtl());
-        add(res, REFRESH_COOKIE, s.refreshToken(), REFRESH_PATH, auth.getRefreshTtl());
+        add(res, SecurityConfig.ACCESS_COOKIE, s.accessToken(), "/", props.accessTokenTtl());
+        add(res, REFRESH_COOKIE, s.refreshToken(), REFRESH_PATH, props.refreshTokenTtl());
         return UserResponse.of(s.user());
     }
 
@@ -74,7 +75,7 @@ class AuthController {
     }
 
     private void add(HttpServletResponse res, String name, String value, String path, Duration maxAge) {
-        res.addHeader(HttpHeaders.SET_COOKIE, ResponseCookie.from(name, value).httpOnly(true).secure(cookieSecure)
+        res.addHeader(HttpHeaders.SET_COOKIE, ResponseCookie.from(name, value).httpOnly(true).secure(props.cookieSecure())
                 .sameSite("Strict").path(path).maxAge(maxAge).build().toString());
     }
 }

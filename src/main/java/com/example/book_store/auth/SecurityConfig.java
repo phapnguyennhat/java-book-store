@@ -2,9 +2,9 @@ package com.example.book_store.auth;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import jakarta.servlet.http.Cookie;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
@@ -12,6 +12,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -26,6 +28,7 @@ import java.util.Set;
 class SecurityConfig {
     static final String ISSUER = "book-store";
     static final String ACCESS_COOKIE = "access_token";
+    static final String ROLE = "role"; // access-token claim, mapped to authority ROLE_<role>
     static final String TOKEN_USE = "token_use"; // "access" | "refresh": stops one being replayed as the other
     // these endpoints must work with a missing/expired/garbage access cookie, so it is not even parsed there
     private static final Set<String> NO_ACCESS_COOKIE = Set.of("/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout");
@@ -43,9 +46,21 @@ class SecurityConfig {
                         .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
                                 "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**",
                                 "/error").permitAll() // error dispatch: without it Security turns every 4xx/5xx into 401
+                        .requestMatchers(HttpMethod.GET, "/api/shops/{slug}").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
-                .oauth2ResourceServer(o -> o.bearerTokenResolver(fromCookie).jwt(j -> j.decoder(accessJwtDecoder)))
+                .oauth2ResourceServer(o -> o.bearerTokenResolver(fromCookie)
+                        .jwt(j -> j.decoder(accessJwtDecoder).jwtAuthenticationConverter(roleConverter())))
                 .build();
+    }
+
+    private static JwtAuthenticationConverter roleConverter() {
+        JwtGrantedAuthoritiesConverter authorities = new JwtGrantedAuthoritiesConverter();
+        authorities.setAuthoritiesClaimName(ROLE);
+        authorities.setAuthorityPrefix("ROLE_");
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(authorities);
+        return converter;
     }
 
     @Bean
@@ -55,8 +70,8 @@ class SecurityConfig {
 
     /** Base64 secret from JWT_SECRET (`openssl rand -base64 48`); HS256 needs at least 256 bits. */
     @Bean
-    SecretKey jwtKey(@Value("${app.auth.jwt-secret}") String secret) {
-        byte[] bytes = Base64.getDecoder().decode(secret.trim());
+    SecretKey jwtKey(AuthProperties props) {
+        byte[] bytes = Base64.getDecoder().decode(props.jwtSecret().trim());
         if (bytes.length < 32) throw new IllegalStateException("JWT_SECRET must decode to at least 32 bytes");
         return new SecretKeySpec(bytes, "HmacSHA256");
     }

@@ -34,11 +34,19 @@ Maven wrapper; no linter configured.
 
 - PostgreSQL 17 on host port **5433** (not 5432, which another local project's container occupies), db/user/password all `bookstore`.
 - RabbitMQ 4 on 5672, management UI at http://localhost:15672, user/password `bookstore`.
+- Redis 7 on 6379 (refresh tokens and revocation), Mailpit for SMTP.
+- LocalStack 4.3 on 4566, S3 only. `localstack/init-s3.sh` creates the private bucket (`S3_BUCKET`) with CORS for browser uploads. Signature validation is on, so presigned URLs behave like real S3. Tests need it running.
 - All ports/credentials come from `.env` (git-ignored; copy `.env.example` to create it). Both `docker-compose.yml` and `application.properties` read it (Spring via `spring.config.import=optional:file:.env[.properties]`, resolved from the working directory, so run from the project root). Add new settings to `.env`, `.env.example`, then reference them as `${VAR}`.
 
 ## Architecture notes
 
+- Table names are plural (`users`, `books`, `shops`, `shop_kycs`); map entities with `@Table(name = ...)`.
 - Flyway owns the schema; Hibernate runs with `ddl-auto=validate`. Change the schema by adding a new migration, never by editing an applied one or by letting Hibernate generate DDL. JPA entities must match the migrated tables.
 - Code lives under `com.example.book_store` (underscore, since `book-store` is not a valid package name) so component scanning from `BookStoreApplication` finds it.
 - `pom.xml` has intentionally empty `<licenses>`, `<developers>`, `<scm>` elements to stop inheriting them from the Spring Boot parent; leave them.
-- Only a `book` table migration (V1) and the application class exist so far; no entities, controllers, or RabbitMQ queues yet.
+- Packages: `auth` (JWT cookies, roles), `shop` (shop + KYC), `storage` (S3 presigned URLs), `web` (error handling, i18n, OpenAPI, request logging).
+- Errors: throw `ApiErrors.of(status, messageCode, fallback, args...)`; add the code to **both** `messages.properties` and `messages_vi.properties` (`MessagesTests` enforces equal keys). The body carries the untranslated `code` for clients (`validation` for field errors) and the translated `detail` for people.
+- Config: `app.*` settings bind to `@ConfigurationProperties` records (`AuthProperties`, `S3Properties`), not `@Value`. Swagger UI / `/v3/api-docs` are off unless `API_DOCS_ENABLED=true` (set in `.env` locally).
+- Transactions: `spring.jpa.open-in-view=false`; read methods use `@Transactional(readOnly = true)`; writes use `saveAndFlush` inside the method so constraint/version conflicts become 409s; no S3 or other network calls inside a transaction.
+- Roles: `users.role` (USER/ADMIN) goes into the access token's `role` claim at login, so a role change applies after the next login/refresh. `/api/admin/**` requires ADMIN; promote with SQL (`UPDATE users SET role = 'ADMIN' ...`).
+- Files never pass through the API: clients get a presigned PUT URL (Content-Type and Content-Length are signed), upload to S3, then submit the object key; the server checks the key's owner prefix and that the object exists.

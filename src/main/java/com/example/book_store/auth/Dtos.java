@@ -16,8 +16,8 @@ record SignupRequest(
 record LoginRequest(@NotBlank String email, @NotBlank String password) {
 }
 
-record UserResponse(Long id, String fullName, String email, LocalDate dateOfBirth, Sex sex) {
+record UserResponse(Long id, String fullName, String email, LocalDate dateOfBirth, Sex sex, Role role) {
     static UserResponse of(User u) {
-        return new UserResponse(u.getId(), u.getFullName(), u.getEmail(), u.getDateOfBirth(), u.getSex());
+        return new UserResponse(u.getId(), u.getFullName(), u.getEmail(), u.getDateOfBirth(), u.getSex(), u.getRole());
     }
 }
