@@ -31,5 +31,17 @@ services:
     ports:
       - "${REDIS_PORT}:6379"
 
+  localstack: # S3 only; bucket + CORS created by localstack/init-s3.sh
+    image: localstack/localstack:4.3
+    environment:
+      SERVICES: s3
+      AWS_DEFAULT_REGION: ${S3_REGION}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_SKIP_SIGNATURE_VALIDATION: 0 # check presigned URLs like real S3 (LocalStack skips by default)
+    ports:
+      - "${LOCALSTACK_PORT}:4566"
+    volumes:
+      - ./localstack/init-s3.sh:/etc/localstack/init/ready.d/init-s3.sh:ro
+
 volumes:
   pgdata:

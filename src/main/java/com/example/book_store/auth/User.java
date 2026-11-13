@@ -22,6 +22,9 @@ public class User {
     private LocalDate dateOfBirth;
     @Enumerated(EnumType.STRING)
     private Sex sex;
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private Role role = Role.USER;
     @Column(insertable = false, updatable = false) // DB default
     private Instant createdAt;
 }

@@ -1,8 +1,7 @@
 package com.example.book_store.auth;
 
-import lombok.Getter;
+import com.example.book_store.web.ApiErrors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -10,7 +9,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Service;
-import org.springframework.http.ProblemDetail;
 import org.springframework.web.ErrorResponseException;
 
 import java.time.Duration;
@@ -29,13 +27,7 @@ class AuthService {
     private final JwtDecoder accessJwtDecoder;
     private final JwtDecoder refreshJwtDecoder;
     private final StringRedisTemplate redis;
-
-    @Getter // read via the proxy by the controller
-    @Value("${app.auth.access-token-ttl:15m}")
-    private Duration accessTtl;
-    @Getter
-    @Value("${app.auth.refresh-token-ttl:7d}")
-    private Duration refreshTtl;
+    private final AuthProperties props;
 
     // lets login spend the same Argon2 time for unknown emails, so timing does not reveal which emails exist
     private String dummyHash;
@@ -61,6 +53,7 @@ class AuthService {
 
     /** One-time use: the refresh jti is deleted atomically, so a replayed token finds nothing. */
     Session refresh(String refreshToken) {
+        if (refreshToken == null) throw unauthorized(); // no cookie: same as an invalid one, so clients just re-login
         Jwt jwt = decode(refreshJwtDecoder, refreshToken);
         String userId = redis.opsForValue().getAndDelete(RevocationValidator.REFRESH + jwt.getId());
         if (userId == null) throw unauthorized();
@@ -80,6 +73,7 @@ class AuthService {
 
     /** Invalidates every token (access and refresh) issued up to now. */
     void logoutAll(Long userId) {
+        Duration accessTtl = props.accessTokenTtl(), refreshTtl = props.refreshTokenTtl();
         Duration ttl = accessTtl.compareTo(refreshTtl) > 0 ? accessTtl : refreshTtl; // by then all older tokens expired anyway
         redis.opsForValue().set(RevocationValidator.REVOKED_USER + userId, String.valueOf(Instant.now().getEpochSecond()), ttl);
     }
@@ -91,16 +85,18 @@ class AuthService {
     private Session issue(User user) {
         Instant now = Instant.now();
         String refreshJti = UUID.randomUUID().toString();
-        String access = sign(user, "access", UUID.randomUUID().toString(), now, accessTtl);
-        String refresh = sign(user, "refresh", refreshJti, now, refreshTtl);
-        redis.opsForValue().set(RevocationValidator.REFRESH + refreshJti, user.getId().toString(), refreshTtl);
+        String access = sign(user, "access", UUID.randomUUID().toString(), now, props.accessTokenTtl());
+        String refresh = sign(user, "refresh", refreshJti, now, props.refreshTokenTtl());
+        redis.opsForValue().set(RevocationValidator.REFRESH + refreshJti, user.getId().toString(), props.refreshTokenTtl());
         return new Session(access, refresh, user);
     }
 
     private String sign(User user, String use, String jti, Instant now, Duration ttl) {
         JwtClaimsSet claims = JwtClaimsSet.builder().issuer(SecurityConfig.ISSUER).subject(user.getId().toString())
                 .id(jti).issuedAt(now).expiresAt(now.plus(ttl))
-                .claim(SecurityConfig.TOKEN_USE, use).build();
+                .claim(SecurityConfig.TOKEN_USE, use)
+                // shortcut: role is fixed until the next login/refresh; check the DB per request if roles change often
+                .claim(SecurityConfig.ROLE, user.getRole().name()).build();
         return jwtEncoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims)).getTokenValue();
     }
 
@@ -121,15 +117,10 @@ class AuthService {
     }
 
     private static ErrorResponseException unauthorized() {
-        return error(HttpStatus.UNAUTHORIZED, "auth.invalid-credentials", "Invalid credentials");
+        return ApiErrors.of(HttpStatus.UNAUTHORIZED, "auth.invalid-credentials", "Invalid credentials");
     }
 
     private static ErrorResponseException conflict() {
-        return error(HttpStatus.CONFLICT, "auth.email-taken", "Email already registered");
-    }
-
-    /** detail is translated from {@code code} in messages*.properties; {@code fallback} is used if the key is missing. */
-    private static ErrorResponseException error(HttpStatus status, String code, String fallback) {
-        return new ErrorResponseException(status, ProblemDetail.forStatusAndDetail(status, fallback), null, code, null);
+        return ApiErrors.of(HttpStatus.CONFLICT, "auth.email-taken", "Email already registered");
     }
 }

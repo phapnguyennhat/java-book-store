@@ -23,6 +23,7 @@ class ApiExceptionHandlerTests {
         mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"a@b.com\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("Invalid request content."))
+                .andExpect(jsonPath("$.code").value("validation"))
                 .andExpect(jsonPath("$.errors.password").value("must not be blank"))
                 .andExpect(jsonPath("$.errors.email").doesNotExist());
     }

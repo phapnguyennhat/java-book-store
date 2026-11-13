@@ -55,6 +55,7 @@ class AuthFlowTests {
         // a refresh token is not an access token and vice versa
         mvc.perform(get("/api/auth/me").cookie(new Cookie("access_token", refresh.getValue()))).andExpect(status().isUnauthorized());
         mvc.perform(post("/api/auth/refresh").cookie(new Cookie("refresh_token", access.getValue()))).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/auth/refresh")).andExpect(status().isUnauthorized()); // no cookie at all
 
         // one-time use: rotation issues a new pair and the old refresh token is dead; a bad access cookie doesn't matter here
         MvcResult rotated = mvc.perform(post("/api/auth/refresh").cookie(refresh, new Cookie("access_token", "garbage")))
