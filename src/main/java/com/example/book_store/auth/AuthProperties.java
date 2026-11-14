@@ -12,6 +12,9 @@ import java.time.Duration;
 @Validated
 record AuthProperties(
         @NotBlank String jwtSecret, // base64, >= 32 bytes: openssl rand -base64 48
+        @NotBlank String appUrl, // frontend base URL, for links in emails
+        @NotBlank String mailFrom,
+        @DefaultValue("24h") Duration emailVerificationTtl,
         @DefaultValue("15m") Duration accessTokenTtl,
         @DefaultValue("7d") Duration refreshTokenTtl,
         @DefaultValue("true") boolean cookieSecure) {

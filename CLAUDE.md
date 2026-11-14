@@ -34,7 +34,7 @@ Maven wrapper; no linter configured.
 
 - PostgreSQL 17 on host port **5433** (not 5432, which another local project's container occupies), db/user/password all `bookstore`.
 - RabbitMQ 4 on 5672, management UI at http://localhost:15672, user/password `bookstore`.
-- Redis 7 on 6379 (refresh tokens and revocation), Mailpit for SMTP.
+- Redis 7 on 6379 (refresh tokens, revocation, email-verification tokens), Mailpit for SMTP (inbox UI at http://localhost:8025). Real SMTP needs only `.env` changes (`MAIL_*`); emails are Thymeleaf templates in `templates/mail/` with texts in `messages*.properties`, rendered in the request's `Accept-Language`.
 - LocalStack 4.3 on 4566, S3 only. `localstack/init-s3.sh` creates the private bucket (`S3_BUCKET`) with CORS for browser uploads. Signature validation is on, so presigned URLs behave like real S3. Tests need it running.
 - All ports/credentials come from `.env` (git-ignored; copy `.env.example` to create it). Both `docker-compose.yml` and `application.properties` read it (Spring via `spring.config.import=optional:file:.env[.properties]`, resolved from the working directory, so run from the project root). Add new settings to `.env`, `.env.example`, then reference them as `${VAR}`.
 

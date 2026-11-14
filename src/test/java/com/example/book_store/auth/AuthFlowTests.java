@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -23,6 +24,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AuthFlowTests {
     @Autowired
     MockMvc mvc;
+    @Autowired
+    JdbcTemplate jdbc;
 
     @Test
     void signupLoginMeRefreshRevoke() throws Exception {
@@ -35,6 +38,9 @@ class AuthFlowTests {
                 .andExpect(status().isConflict());
 
         String creds = "{\"email\":\"%s\",\"password\":\"%s\"}";
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(creds.formatted(email, "s3cret-pass")))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("auth.email-not-verified"));
+        jdbc.update("UPDATE users SET email_verified_at = now() WHERE email = ?", email); // the link flow is in EmailVerificationTests
         mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(creds.formatted(email, "wrong-pass")))
                 .andExpect(status().isUnauthorized());
         MvcResult login = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)

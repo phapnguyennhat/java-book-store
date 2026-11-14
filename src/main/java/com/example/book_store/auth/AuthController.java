@@ -29,6 +29,20 @@ class AuthController {
         return UserResponse.of(auth.signup(r));
     }
 
+    /** Token from the link in the verification email (the frontend's /verify-email page posts it here). */
+    @PostMapping("/verify-email")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void verifyEmail(@Valid @RequestBody VerifyEmailRequest r) {
+        auth.verifyEmail(r.token());
+    }
+
+    /** Sends a new verification email (at most once a minute per account); always 204, even for unknown emails. */
+    @PostMapping("/resend-verification")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void resendVerification(@Valid @RequestBody ResendVerificationRequest r) {
+        auth.resendVerification(r.email());
+    }
+
     @PostMapping("/login")
     UserResponse login(@Valid @RequestBody LoginRequest r, HttpServletResponse res) {
         return setCookies(res, auth.login(r));

@@ -28,6 +28,11 @@ class AuthService {
     private final JwtDecoder refreshJwtDecoder;
     private final StringRedisTemplate redis;
     private final AuthProperties props;
+    private final VerificationMailer mailer;
+
+    private static final String VERIFY_EMAIL = "verify-email:"; // + token -> user id
+    private static final String RESEND_COOLDOWN = "verify-email-resend:"; // + user id, blocks mail bombing
+    private static final Duration RESEND_INTERVAL = Duration.ofMinutes(1);
 
     // lets login spend the same Argon2 time for unknown emails, so timing does not reveal which emails exist
     private String dummyHash;
@@ -35,12 +40,42 @@ class AuthService {
     User signup(SignupRequest r) {
         String email = r.email().trim().toLowerCase();
         if (users.existsByEmail(email)) throw conflict();
+        User user;
         try {
-            return users.saveAndFlush(User.builder().fullName(r.fullName().trim()).email(email)
+            user = users.saveAndFlush(User.builder().fullName(r.fullName().trim()).email(email)
                     .passwordHash(encoder.encode(r.password())).dateOfBirth(r.dateOfBirth()).sex(r.sex()).build());
         } catch (DataIntegrityViolationException e) { // concurrent signup with same email
             throw conflict();
         }
+        sendVerification(user);
+        return user;
+    }
+
+    /**
+     * Silently does nothing for unknown, already verified or rate-limited emails, so callers can't probe accounts.
+     * Older links stay valid until they expire; any of them verifies the same account.
+     */
+    void resendVerification(String email) {
+        User user = users.findByEmail(email.trim().toLowerCase()).orElse(null);
+        if (user == null || user.getEmailVerifiedAt() != null) return;
+        if (Boolean.TRUE.equals(redis.opsForValue().setIfAbsent(RESEND_COOLDOWN + user.getId(), "1", RESEND_INTERVAL)))
+            sendVerification(user);
+    }
+
+    private void sendVerification(User user) {
+        String token = UUID.randomUUID().toString();
+        redis.opsForValue().set(VERIFY_EMAIL + token, user.getId().toString(), props.emailVerificationTtl());
+        mailer.sendVerification(user, token); // in the request's Accept-Language
+    }
+
+    /** One-time use, like refresh tokens: the key is deleted atomically. */
+    void verifyEmail(String token) {
+        String userId = redis.opsForValue().getAndDelete(VERIFY_EMAIL + token);
+        User user = userId == null ? null : users.findById(Long.valueOf(userId)).orElse(null);
+        if (user == null) throw ApiErrors.of(HttpStatus.BAD_REQUEST, "auth.verify-token-invalid",
+                "Verification link is invalid or has expired");
+        user.markEmailVerified();
+        users.saveAndFlush(user);
     }
 
     Session login(LoginRequest r) {
@@ -48,6 +83,9 @@ class AuthService {
         User user = users.findByEmail(r.email().trim().toLowerCase()).orElse(null);
         boolean ok = encoder.matches(r.password(), user == null ? dummyHash : user.getPasswordHash());
         if (user == null || !ok) throw unauthorized();
+        // after the password check, so only the owner learns the account exists
+        if (user.getEmailVerifiedAt() == null) throw ApiErrors.of(HttpStatus.FORBIDDEN, "auth.email-not-verified",
+                "Verify your email before signing in");
         return issue(user);
     }
 
