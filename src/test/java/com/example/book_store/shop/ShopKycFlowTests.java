@@ -209,6 +209,7 @@ class ShopKycFlowTests {
         mvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON).content("""
                 {"fullName":"Seller","email":"%s","password":"s3cret-pass","dateOfBirth":"1990-01-01","sex":"MALE"}"""
                 .formatted(email))).andExpect(status().isCreated());
+        jdbc.update("UPDATE users SET email_verified_at = now() WHERE email = ?", email); // login requires it
         return email;
     }
 

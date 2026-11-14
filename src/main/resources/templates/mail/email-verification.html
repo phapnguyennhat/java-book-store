@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<!--/*
+  Thoth: email verification (Thymeleaf).
+  Rendered by auth/VerificationMailer.
+
+  Model variables:
+    fullName      String   user's full name
+    email         String   address being verified
+    verifyUrl     String   absolute URL, e.g. https://thoth.vn/verify-email?token=...
+    expiryHours   int      link lifetime in hours, e.g. 24
+    logoUrl       String   absolute URL of thoth-logo-mark.png (emails cannot load relative paths)
+    year          int      copyright year
+
+  Text comes from messages*.properties (keys email.verify.*), resolved with the Context locale.
+  Static text inside each element is a natural-template preview (open this file in a browser).
+  Layout is table-based with inline styles on purpose: Gmail, Outlook and Apple Mail ignore most modern CSS.
+*/-->
+<html xmlns:th="http://www.thymeleaf.org" lang="vi" th:lang="${#locale.language}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="x-apple-disable-message-reformatting">
+  <!-- Designed light: stops Apple Mail / iOS from auto-inverting the colours. -->
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title th:text="#{email.verify.subject}">Xác thực email của bạn trên Thoth</title>
+  <!-- Clients that allow web fonts (Apple Mail, iOS) get Be Vietnam Pro; the rest fall back to Arial. -->
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; padding: 0; width: 100% !important; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table { border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0; }
+    img { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }
+    a { color: #1e6e6a; }
+    .btn a:hover { background-color: #d99a28 !important; }
+    @media only screen and (max-width: 620px) {
+      .container { width: 100% !important; }
+      .px { padding-left: 24px !important; padding-right: 24px !important; }
+      .h1 { font-size: 26px !important; line-height: 32px !important; }
+      .btn { width: 100% !important; }
+      .btn a { display: block !important; box-sizing: border-box; text-align: center; }
+    }
+  </style>
+  <!--[if mso]>
+  <style>body, table, td, a, p, h1 { font-family: Arial, sans-serif !important; }</style>
+  <![endif]-->
+</head>
+<body style="margin:0; padding:0; background-color:#111a33;">
+
+  <!-- Preheader: the grey preview line in the inbox list. Hidden in the opened email. -->
+  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#111a33; opacity:0;"
+       th:text="#{email.verify.preheader}">Một bước nữa để hoàn tất tài khoản Thoth của bạn.</div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#111a33;">
+    <tr>
+      <td align="center" style="padding:40px 12px;">
+
+        <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px;">
+
+          <!-- Header: logo on the night ground -->
+          <tr>
+            <td class="px" style="padding:0 40px 28px 40px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td valign="middle" style="padding-right:10px;">
+                    <img src="thoth-logo-mark.png" th:src="${logoUrl}" width="40" height="40" alt="" style="display:block; width:40px; height:40px;">
+                  </td>
+                  <td valign="middle" style="font-family:'Be Vietnam Pro', Arial, Helvetica, sans-serif; font-size:26px; line-height:32px; font-weight:800; color:#f2dfa0; letter-spacing:-0.3px;">
+                    Thoth
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Card -->
+          <tr>
+            <td style="background-color:#efedf3; border-radius:12px; overflow:hidden;">
+              <!-- Gold rule: the same strip that tops the sign-in card -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td height="4" style="height:4px; line-height:4px; font-size:4px; background-color:#e3a93c; border-radius:12px 12px 0 0;">&nbsp;</td></tr>
+              </table>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="px" style="padding:40px 48px 8px 48px; font-family:'Be Vietnam Pro', Arial, Helvetica, sans-serif; color:#172340;">
+
+                    <h1 class="h1" style="margin:0 0 20px 0; font-size:30px; line-height:36px; font-weight:800; letter-spacing:-0.5px; color:#172340;"
+                        th:text="#{email.verify.heading}">Xác thực địa chỉ email</h1>
+
+                    <p style="margin:0 0 16px 0; font-size:16px; line-height:26px; color:#172340;"
+                       th:text="#{email.verify.greeting(${fullName})}">Chào Nguyễn Văn An,</p>
+
+                    <p style="margin:0 0 28px 0; font-size:16px; line-height:26px; color:#4a5576;">
+                      <span th:text="#{email.verify.body}">Cảm ơn bạn đã tạo tài khoản Thoth. Nhấn nút bên dưới để xác nhận đây là email của bạn:</span>
+                      <strong style="color:#172340; font-weight:600;" th:text="${email}">an.nguyen@vidu.com</strong>
+                    </p>
+
+                    <!-- Bulletproof button: a padded link inside a coloured cell, so Outlook still draws it -->
+                    <table role="presentation" class="btn" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;">
+                      <tr>
+                        <td align="center" bgcolor="#e3a93c" style="border-radius:8px; background-color:#e3a93c;">
+                          <a href="https://thoth.vn/verify-email?token=example" th:href="${verifyUrl}" target="_blank"
+                             style="display:inline-block; padding:15px 32px; font-family:'Be Vietnam Pro', Arial, Helvetica, sans-serif; font-size:16px; line-height:20px; font-weight:800; color:#172340; text-decoration:none; border-radius:8px; background-color:#e3a93c;"
+                             th:text="#{email.verify.button}">Xác thực email</a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="margin:0 0 32px 0; font-size:14px; line-height:22px; color:#4a5576;"
+                       th:text="#{email.verify.expiry(${expiryHours})}">Liên kết có hiệu lực trong 24 giờ.</p>
+
+                  </td>
+                </tr>
+
+                <!-- Fallback link, set apart from the action -->
+                <tr>
+                  <td class="px" style="padding:0 48px 40px 48px; font-family:'Be Vietnam Pro', Arial, Helvetica, sans-serif;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr><td style="border-top:1px solid #c3c7da; font-size:0; line-height:0;">&nbsp;</td></tr>
+                    </table>
+                    <p style="margin:24px 0 8px 0; font-size:13px; line-height:20px; color:#4a5576;"
+                       th:text="#{email.verify.fallback}">Nút không hoạt động? Sao chép liên kết này vào trình duyệt:</p>
+                    <p style="margin:0 0 24px 0; font-size:13px; line-height:20px; word-break:break-all;">
+                      <a href="https://thoth.vn/verify-email?token=example" th:href="${verifyUrl}" th:text="${verifyUrl}" target="_blank"
+                         style="color:#1e6e6a; text-decoration:underline;">https://thoth.vn/verify-email?token=example</a>
+                    </p>
+                    <p style="margin:0; font-size:13px; line-height:20px; color:#4a5576;"
+                       th:text="#{email.verify.ignore}">Nếu bạn không tạo tài khoản trên Thoth, hãy bỏ qua email này. Tài khoản sẽ không được kích hoạt.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td class="px" align="center" style="padding:28px 40px 0 40px; font-family:'Be Vietnam Pro', Arial, Helvetica, sans-serif; font-size:12px; line-height:19px; color:#b9c1dd;">
+              <p style="margin:0 0 4px 0;" th:text="#{email.footer.tagline}">Thoth: nhiều hiệu sách, một giỏ hàng.</p>
+              <p style="margin:0;">
+                <span th:text="#{email.footer.automated}">Đây là email tự động, vui lòng không trả lời.</span>
+                <span>&middot; &copy; <span th:text="${year}">2026</span> Thoth</span>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

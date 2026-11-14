@@ -16,8 +16,15 @@ record SignupRequest(
 record LoginRequest(@NotBlank String email, @NotBlank String password) {
 }
 
-record UserResponse(Long id, String fullName, String email, LocalDate dateOfBirth, Sex sex, Role role) {
+record VerifyEmailRequest(@NotBlank String token) {
+}
+
+record ResendVerificationRequest(@NotBlank @Email String email) {
+}
+
+record UserResponse(Long id, String fullName, String email, boolean emailVerified, LocalDate dateOfBirth, Sex sex, Role role) {
     static UserResponse of(User u) {
-        return new UserResponse(u.getId(), u.getFullName(), u.getEmail(), u.getDateOfBirth(), u.getSex(), u.getRole());
+        return new UserResponse(u.getId(), u.getFullName(), u.getEmail(), u.getEmailVerifiedAt() != null,
+                u.getDateOfBirth(), u.getSex(), u.getRole());
     }
 }

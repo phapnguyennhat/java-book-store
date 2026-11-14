@@ -44,6 +44,7 @@ class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
+                                "/api/auth/verify-email", "/api/auth/resend-verification",
                                 "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**",
                                 "/error").permitAll() // error dispatch: without it Security turns every 4xx/5xx into 401
                         .requestMatchers(HttpMethod.GET, "/api/shops/{slug}").permitAll()

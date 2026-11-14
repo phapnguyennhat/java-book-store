@@ -25,6 +25,11 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private Role role = Role.USER;
+    private Instant emailVerifiedAt;
     @Column(insertable = false, updatable = false) // DB default
     private Instant createdAt;
+
+    void markEmailVerified() {
+        if (emailVerifiedAt == null) emailVerifiedAt = Instant.now();
+    }
 }
