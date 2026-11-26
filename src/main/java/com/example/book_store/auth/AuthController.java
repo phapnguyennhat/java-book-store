@@ -43,6 +43,20 @@ class AuthController {
         auth.resendVerification(r.email());
     }
 
+    /** Emails a password reset link (at most once a minute per account); always 204, even for unknown emails. */
+    @PostMapping("/forgot-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void forgotPassword(@Valid @RequestBody ForgotPasswordRequest r) {
+        auth.forgotPassword(r.email());
+    }
+
+    /** Token from the link in the reset email (the frontend's /reset-password page posts it with the new password). */
+    @PostMapping("/reset-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void resetPassword(@Valid @RequestBody ResetPasswordRequest r) {
+        auth.resetPassword(r.token(), r.password());
+    }
+
     @PostMapping("/login")
     UserResponse login(@Valid @RequestBody LoginRequest r, HttpServletResponse res) {
         return setCookies(res, auth.login(r));
