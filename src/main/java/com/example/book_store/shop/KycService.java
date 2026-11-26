@@ -209,7 +209,8 @@ class KycService {
         addDocument(docs, DocumentType.SELFIE, k.getSelfieKey());
         addDocument(docs, DocumentType.BUSINESS_LICENSE, k.getBusinessLicenseKey());
         return new KycResponse(k.getShopId(), k.getSellerType(), k.getStatus(), k.getLegalName(), k.getIdNumber(),
-                k.getIdIssueDate(), k.getIdIssuePlace(), k.getDateOfBirth(), k.getPermanentAddress(), r.business(),
+                k.getIdIssueDate(), k.getIdIssuePlace(), k.getDateOfBirth(), k.getPermanentAddress(), k.getIdFrontKey(),
+                k.getIdBackKey(), k.getSelfieKey(), r.business(),
                 r.bank(), docs, k.getSubmittedAt(), k.getReviewedAt(), k.getRejectionReason());
     }
 
