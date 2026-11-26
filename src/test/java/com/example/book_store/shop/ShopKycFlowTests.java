@@ -86,6 +86,9 @@ class ShopKycFlowTests {
         // the payout holder is only checked on submission: steps can be edited in any order
         json(put(kycUrl), seller, kyc("INDIVIDUAL", front, back, selfie, "TRAN THI B", null))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.documents.SELFIE").exists());
+        // keys come back so a resumed draft can be saved again without dropping its documents
+        mvc.perform(get(kycUrl).cookie(seller)).andExpect(jsonPath("$.idFrontKey").value(front))
+                .andExpect(jsonPath("$.selfieKey").value(selfie));
         mvc.perform(post(submit).cookie(seller)).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("Bank account holder must match the legal name or business name"));
         // back to step 2 (address) and step 4 (holder), then submit

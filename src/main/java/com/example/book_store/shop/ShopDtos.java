@@ -88,10 +88,14 @@ record KycRequest(
     }
 }
 
-/** Full KYC for the owner and admins; document links are short-lived presigned GET URLs. */
+/**
+ * Full KYC for the owner and admins; document links are short-lived presigned GET URLs. The document keys are
+ * returned too (named as in {@link KycRequest}) because saving a draft replaces it whole: a client resuming a
+ * draft must send them back or the documents are dropped.
+ */
 record KycResponse(Long shopId, SellerType sellerType, KycStatus status, String legalName, String idNumber,
                    LocalDate idIssueDate, String idIssuePlace, LocalDate dateOfBirth, String permanentAddress,
-                   KycRequest.BusinessInfo business, KycRequest.BankAccount bank, Map<DocumentType, URL> documents,
+                   String idFrontKey, String idBackKey, String selfieKey, KycRequest.BusinessInfo business, KycRequest.BankAccount bank, Map<DocumentType, URL> documents,
                    Instant submittedAt, Instant reviewedAt, String rejectionReason) {
 }
 
