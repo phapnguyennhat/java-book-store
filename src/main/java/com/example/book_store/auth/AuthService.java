@@ -28,10 +28,12 @@ class AuthService {
     private final JwtDecoder refreshJwtDecoder;
     private final StringRedisTemplate redis;
     private final AuthProperties props;
-    private final VerificationMailer mailer;
+    private final AuthMailer mailer;
 
     private static final String VERIFY_EMAIL = "verify-email:"; // + token -> user id
     private static final String RESEND_COOLDOWN = "verify-email-resend:"; // + user id, blocks mail bombing
+    private static final String RESET_PASSWORD = "reset-password:"; // + token -> user id
+    private static final String RESET_COOLDOWN = "reset-password-cooldown:"; // + user id
     private static final Duration RESEND_INTERVAL = Duration.ofMinutes(1);
 
     // lets login spend the same Argon2 time for unknown emails, so timing does not reveal which emails exist
@@ -76,6 +78,28 @@ class AuthService {
                 "Verification link is invalid or has expired");
         user.markEmailVerified();
         users.saveAndFlush(user);
+    }
+
+    /** Like resendVerification: silent for unknown or rate-limited emails, so callers can't probe accounts. */
+    void forgotPassword(String email) {
+        User user = users.findByEmail(email.trim().toLowerCase()).orElse(null);
+        if (user == null || !Boolean.TRUE.equals(
+                redis.opsForValue().setIfAbsent(RESET_COOLDOWN + user.getId(), "1", RESEND_INTERVAL))) return;
+        String token = UUID.randomUUID().toString();
+        redis.opsForValue().set(RESET_PASSWORD + token, user.getId().toString(), props.passwordResetTtl());
+        mailer.sendPasswordReset(user, token);
+    }
+
+    /** One-time token; signs out every device, since a reset usually means the old password leaked. */
+    void resetPassword(String token, String password) {
+        String userId = redis.opsForValue().getAndDelete(RESET_PASSWORD + token);
+        User user = userId == null ? null : users.findById(Long.valueOf(userId)).orElse(null);
+        if (user == null) throw ApiErrors.of(HttpStatus.BAD_REQUEST, "auth.reset-token-invalid",
+                "Password reset link is invalid or has expired");
+        user.changePasswordHash(encoder.encode(password));
+        user.markEmailVerified(); // the link came through the inbox, which proves ownership
+        users.saveAndFlush(user);
+        logoutAll(user.getId());
     }
 
     Session login(LoginRequest r) {

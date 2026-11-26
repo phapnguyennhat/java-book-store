@@ -22,6 +22,12 @@ record VerifyEmailRequest(@NotBlank String token) {
 record ResendVerificationRequest(@NotBlank @Email String email) {
 }
 
+record ForgotPasswordRequest(@NotBlank @Email String email) {
+}
+
+record ResetPasswordRequest(@NotBlank String token, @NotBlank @Size(min = 8, max = 128) String password) {
+}
+
 record UserResponse(Long id, String fullName, String email, boolean emailVerified, LocalDate dateOfBirth, Sex sex, Role role) {
     static UserResponse of(User u) {
         return new UserResponse(u.getId(), u.getFullName(), u.getEmail(), u.getEmailVerifiedAt() != null,

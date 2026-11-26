@@ -29,6 +29,10 @@ public class User {
     @Column(insertable = false, updatable = false) // DB default
     private Instant createdAt;
 
+    void changePasswordHash(String hash) {
+        passwordHash = hash;
+    }
+
     void markEmailVerified() {
         if (emailVerifiedAt == null) emailVerifiedAt = Instant.now();
     }

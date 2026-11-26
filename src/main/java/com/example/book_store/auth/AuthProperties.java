@@ -15,6 +15,7 @@ record AuthProperties(
         @NotBlank String appUrl, // frontend base URL, for links in emails
         @NotBlank String mailFrom,
         @DefaultValue("24h") Duration emailVerificationTtl,
+        @DefaultValue("30m") Duration passwordResetTtl,
         @DefaultValue("15m") Duration accessTokenTtl,
         @DefaultValue("7d") Duration refreshTokenTtl,
         @DefaultValue("true") boolean cookieSecure) {
